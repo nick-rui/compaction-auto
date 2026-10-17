@@ -6,3 +6,4 @@ notes/
 *.log
 exp/persona/data/
 exp/qwencli/sandboxes/
+.claude/
