@@ -91,7 +91,30 @@ def rebuild(history, summary, style="qwen", keep_user=True):
         return head + kept + [{"role": "user", "content": f"{CODEX_PREFIX}\n{summary}"}]
     if style == "assistant":  # summary placed as the model's own prior turn
         return head + [{"role": "assistant", "content": summary}]
+    if style == "claude":  # Claude Code-like continuation framing (summary text from the qwen/Claude Code-format prompt)
+        return head + [{"role": "user", "content": f"{CLAUDE_PREFIX}\n\n{summary}\n\n{CLAUDE_SUFFIX}"}]
     raise ValueError(style)
+
+
+# Claude Code's post-compaction framing, reconstructed from the fixed boilerplate of local Claude Code
+# session logs (summary entries are user-role messages). Exact wording may differ by version.
+CLAUDE_PREFIX = ("This session is being continued from a previous conversation that ran out of context. "
+                 "The summary below covers the earlier portion of the conversation.")
+CLAUDE_SUFFIX = "Continue the conversation from where it left off without asking the user any further questions."
+
+
+async def compact_chain(history, rounds, style="qwen", between=None, fixed=True, **kw):
+    """Repeated compaction: compact, rebuild, append between(r) turns, compact again.
+    Returns [(summary_dict, rebuilt_history)] for each round. `between(r, hist)` returns messages to append
+    after round r (e.g. filler work), or None. Summaries for style 'claude' use the qwen (Claude Code-format) prompt."""
+    out, hist = [], history
+    for r in range(rounds):
+        s = await compact(hist, style="qwen" if style == "claude" else style, fixed=fixed, **kw)
+        hist = rebuild(hist, s["summary"], style=style)
+        out.append((s, hist))
+        if between is not None:
+            hist = hist + (between(r, hist) or [])
+    return out
 
 
 def truncate(history, keep_last=6):

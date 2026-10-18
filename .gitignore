@@ -7,3 +7,5 @@ notes/
 exp/persona/data/
 exp/qwencli/sandboxes/
 .claude/
+exp/harness/
+exp/**/*.md
