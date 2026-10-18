@@ -1,0 +1,76 @@
+"""Real harnesses (via inspect_swe) with a CompactionPolicy attached."""
+
+from __future__ import annotations
+
+from typing import Literal
+
+from inspect_ai.agent import Agent
+from inspect_swe import claude_code, codex_cli
+
+from .filter import compaction_filter
+from .policy import CompactionPolicy
+
+Harness = Literal["claude_code", "codex_cli"]
+
+# Pinned harness versions. Compaction behaviour changes between releases, so every run
+# records the version it used; bump deliberately.
+DEFAULT_VERSIONS: dict[str, str] = {"claude_code": "stable", "codex_cli": "latest"}
+
+
+def native_trigger_settings(harness: Harness, policy: CompactionPolicy) -> tuple[dict, dict]:
+    """(env, config_overrides) that set the harness's own auto-compact threshold."""
+    env: dict[str, str] = {}
+    cfg: dict[str, str] = {}
+    w = policy.trigger.window_tokens
+    if w is not None:
+        if harness == "claude_code":
+            # for model ids Claude Code doesn't recognise (open models), the window must be
+            # declared via CLAUDE_CODE_MAX_CONTEXT_TOKENS; AUTO_COMPACT_WINDOW caps it further
+            env["CLAUDE_CODE_MAX_CONTEXT_TOKENS"] = str(w)
+            env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] = str(w)
+        else:
+            cfg["model_context_window"] = str(w)
+            cfg["model_auto_compact_token_limit"] = str(int(w * 0.9))
+    return env, cfg
+
+
+def make_agent(
+    harness: Harness,
+    policy: CompactionPolicy | None = None,
+    *,
+    version: str | None = None,
+    model: str | None = None,
+    system_prompt: str | None = None,
+    env: dict[str, str] | None = None,
+    config_overrides: dict[str, str] | None = None,
+    cwd: str = "/workspace",
+    debug: bool = False,
+) -> Agent:
+    policy = policy or CompactionPolicy()
+    nenv, ncfg = native_trigger_settings(harness, policy)
+    filt = compaction_filter(policy, harness)
+    version = version or DEFAULT_VERSIONS[harness]
+    if harness == "claude_code":
+        return claude_code(
+            system_prompt=system_prompt,
+            model=model,
+            filter=filt,
+            cwd=cwd,
+            version=version,
+            env={**nenv, **(env or {}), **policy.extra_env},
+            disallowed_tools=["WebSearch", "WebFetch"],
+            debug=debug,
+        )
+    if harness == "codex_cli":
+        return codex_cli(
+            system_prompt=system_prompt,
+            model=model,
+            filter=filt,
+            cwd=cwd,
+            version=version,
+            env={**(env or {}), **policy.extra_env} or None,
+            config_overrides={**ncfg, **(config_overrides or {}), **policy.extra_config},
+            web_search="disabled",
+            debug=debug,
+        )
+    raise ValueError(f"unknown harness {harness}")

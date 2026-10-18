@@ -1,0 +1,10 @@
+services:
+  default:
+    image: ce-sandbox:latest
+    build: .
+    init: true
+    # Agents reach the model through the Inspect bridge (no network needed) and
+    # external services are mocked locally by mocksvc.
+    network_mode: none
+    mem_limit: 8g
+    cpus: 2

@@ -1,0 +1,10 @@
+log_dir: runs/example_grid
+model: openai-api/local/qwen3.8-27b
+epochs: 3
+max_samples: 8
+common:
+  scenarios: scenarios/smoke
+  window: 120000
+grid:
+  harness: [claude_code, codex_cli]
+  policy: [harness_default, every_10, honest_pre, neutral_post]
