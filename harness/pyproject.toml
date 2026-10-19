@@ -3,7 +3,8 @@ name = "ce"
 version = "0.1.0"
 description = "Compaction evals: real agent harnesses (Claude Code, Codex CLI) with controllable compaction"
 requires-python = ">=3.12"
-dependencies = ["inspect-ai>=0.3.281", "inspect-swe>=0.2.71", "pyyaml", "pandas", "aiohttp", "pytest"]
+# openai / anthropic: Inspect's openai-api, openrouter and anthropic providers import them lazily
+dependencies = ["inspect-ai>=0.3.281", "inspect-swe>=0.2.71", "openai", "anthropic", "pyyaml", "pandas", "aiohttp", "pytest"]
 
 [project.optional-dependencies]
 # inspect_evals 0.25 imports names removed in swebench 5.x
