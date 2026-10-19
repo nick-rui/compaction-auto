@@ -1,7 +1,8 @@
 """Named policy presets and a builder from task parameters (`-T` on the inspect CLI).
 
 Build any policy from flat parameters:
-  trigger=native|every_n|at_turns|never   window=<tokens>  n=<calls>  turns=3,7  max_compactions=k
+  trigger=native|every_n|at_turns|at_user_turns|never   window=<tokens>  n=<calls>  turns=3,7
+                                          user_turns=1,2,3  max_compactions=k
   pre=harness|replace|append|prepend      pre_text=<str> or pre_file=<path>
   post=harness|template|wrap              post_template=<str with {summary}> or post_file=<path>
                                           post_prefix=<str>  post_suffix=<str>
@@ -63,6 +64,7 @@ def build_policy(
     window: int | None = None,
     n: int | None = None,
     turns: str | int | list[int] | None = None,
+    user_turns: str | int | list[int] | None = None,
     max_compactions: int | None = None,
     pre: str | None = None,
     pre_text: str | None = None,
@@ -80,17 +82,18 @@ def build_policy(
     if policy not in PRESETS:
         raise ValueError(f"unknown policy preset {policy!r}; known: {sorted(PRESETS)}")
     overrides = dict(
-        trigger=trigger, window=window, n=n, turns=turns, max_compactions=max_compactions,
-        pre=pre, pre_text=pre_text, pre_file=pre_file, post=post, post_template=post_template,
+        trigger=trigger, window=window, n=n, turns=turns, user_turns=user_turns,
+        max_compactions=max_compactions, pre=pre, pre_text=pre_text, pre_file=pre_file, post=post, post_template=post_template,
         post_file=post_file, post_prefix=post_prefix, post_suffix=post_suffix,
         summary_append=summary_append, summary_prepend=summary_prepend, summarizer=summarizer,
     )
     p.update({k: v for k, v in overrides.items() if v is not None})
-    t = p.get("turns")
-    if isinstance(t, (int, float)):
-        p["turns"] = [int(t)]
-    elif isinstance(t, str):
-        p["turns"] = [int(x) for x in t.split(",") if x.strip()]
+    for key in ("turns", "user_turns"):
+        t = p.get(key)
+        if isinstance(t, (int, float)):
+            p[key] = [int(t)]
+        elif isinstance(t, str):
+            p[key] = [int(x) for x in t.split(",") if x.strip()]
     for k in ("post_prefix", "post_suffix", "summary_append", "summary_prepend"):
         if k in p:
             p[k] = _as_text(p[k])
@@ -121,6 +124,7 @@ def build_policy(
             window_tokens=p.get("window"),
             n=int(p.get("n", 10)),
             turns=tuple(p.get("turns", ())),
+            user_turns=tuple(p.get("user_turns", ())),
             max_compactions=p.get("max_compactions"),
         ),
         summarizer_model=p.get("summarizer"),

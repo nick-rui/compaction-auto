@@ -37,6 +37,7 @@ def compaction_eval(
     window: int | None = None,
     n: int | None = None,
     turns: str | int | None = None,
+    user_turns: str | int | None = None,
     max_compactions: int | None = None,
     pre: str | None = None,
     pre_text: str | None = None,
@@ -58,7 +59,7 @@ def compaction_eval(
     if window is None and os.environ.get("CE_DEFAULT_WINDOW"):
         window = int(os.environ["CE_DEFAULT_WINDOW"])
     pol = build_policy(
-        policy, trigger=trigger, window=window, n=n, turns=turns,
+        policy, trigger=trigger, window=window, n=n, turns=turns, user_turns=user_turns,
         max_compactions=max_compactions, pre=pre, pre_text=pre_text, pre_file=pre_file,
         post=post, post_template=post_template, post_file=post_file,
         post_prefix=post_prefix, post_suffix=post_suffix, summary_append=summary_append,

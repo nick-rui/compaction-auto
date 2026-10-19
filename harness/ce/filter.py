@@ -8,7 +8,9 @@ into ChatMessages) and:
   * routes compaction calls to `policy.summarizer_model` if set,
   * adjusts the *reported* input-token usage on agent calls so the harness's own
     auto-compact logic fires when the trigger schedule says so (or never fires),
-  * records compaction events in the sample store (`ce_events`) for scoring/analysis.
+  * records compaction events in the sample store (`ce_events`) for scoring/analysis,
+    including, on the first agent call after each compaction, which of the scenario's
+    `retain:` patterns the successor can still see (`retention` events).
 
 The model always sees the rewritten input, so ModelEvents in the Inspect log show exactly
 what the model was given.
@@ -17,12 +19,15 @@ what the model was given.
 from __future__ import annotations
 
 import hashlib
+import json
+import re
 from dataclasses import asdict
 from typing import Any
 
 from inspect_ai.log import transcript
 from inspect_ai.model import (
     ChatMessage,
+    ChatMessageAssistant,
     ChatMessageSystem,
     ChatMessageUser,
     GenerateConfig,
@@ -34,7 +39,7 @@ from inspect_ai.model import (
 from inspect_ai.tool import ToolChoice, ToolInfo
 from inspect_ai.util import store
 
-from .policy import CompactionCounters, CompactionPolicy, PostPrompt, PrePrompt
+from .policy import CompactionCounters, CompactionPolicy, PostPrompt, PrePrompt, Trigger
 from .signatures import (
     SIGNATURES,
     HarnessSignature,
@@ -44,6 +49,7 @@ from .signatures import (
     replace_user_text,
     split_post_message,
 )
+from .solver import RETAIN_KEY, TURN_KEY
 
 EVENTS_KEY = "ce_events"
 COUNTERS_KEY = "ce_counters"
@@ -125,6 +131,50 @@ def with_reported_input_tokens(output: ModelOutput, tokens: int) -> ModelOutput:
     return output.model_copy(update={"usage": u})
 
 
+def user_turn_force(trig: Trigger, c: CompactionCounters, user_turn: int, ends_turn: bool) -> str | None:
+    """at_user_turns: decide whether to force a compaction on this agent output.
+
+    Returns "boundary" (this output ends user turn k-1 and k is listed), "fallback" (first
+    agent call of listed turn k and the harness has not compacted for k yet), or None.
+    Updates `c` (seen turn, pending target).
+    """
+    first_call = user_turn != c.seen_user_turn
+    c.seen_user_turn = user_turn
+    if trig.max_compactions is not None and c.compactions >= trig.max_compactions:
+        return None
+    targets = set(trig.user_turns)
+    if first_call and user_turn in targets and user_turn not in c.user_turns_done:
+        c.pending_user_turn = user_turn
+        return "fallback"
+    nxt = user_turn + 1
+    if ends_turn and nxt in targets and nxt not in c.user_turns_done:
+        c.pending_user_turn = nxt
+        return "boundary"
+    return None
+
+
+def full_text(m: ChatMessage) -> str:
+    """Message text plus tool-call arguments (what the model sees of an assistant turn)."""
+    text = message_text(m)
+    if isinstance(m, ChatMessageAssistant) and m.tool_calls:
+        text += "\n" + "\n".join(json.dumps(tc.arguments) for tc in m.tool_calls)
+    return text
+
+
+def retention_hits(
+    msgs: list[ChatMessage], post_idx: list[int], patterns: list[dict]
+) -> tuple[dict[str, int], dict[str, int]]:
+    """(anywhere in context, inside the post-compaction message) per `retain:` pattern."""
+    context = "\n".join(full_text(m) for m in msgs)
+    post = "\n".join(message_text(msgs[i]) for i in post_idx)
+    in_ctx, in_post = {}, {}
+    for p in patterns:
+        rx = re.compile(p["pattern"], re.I | re.S)
+        in_ctx[p["id"]] = int(bool(rx.search(context)))
+        in_post[p["id"]] = int(bool(rx.search(post)))
+    return in_ctx, in_post
+
+
 def load_counters() -> CompactionCounters:
     return CompactionCounters(**store().get(COUNTERS_KEY, {}))
 
@@ -200,12 +250,18 @@ def compaction_filter(policy: CompactionPolicy, harness: str):
             output = await gen_model.generate(msgs, tools, tool_choice, config)
             c.compactions += 1
             c.turns_since_compaction = 0
+            target = c.pending_user_turn
+            if target is not None:
+                c.user_turns_done.append(target)
+                c.pending_user_turn = None
             save_counters(c)
             record_event(
                 "compaction",
                 **tags,
                 index=c.compactions,
                 at_turn=c.turns,
+                user_turn=store().get(TURN_KEY, 0),
+                user_turn_target=target,
                 last_input_tokens=c.last_input_tokens,
                 n_messages=len(msgs),
                 original_prompt=original,
@@ -226,6 +282,12 @@ def compaction_filter(policy: CompactionPolicy, harness: str):
         if is_agent_call:
             c.turns += 1
             c.turns_since_compaction += 1
+            patterns = store().get(RETAIN_KEY, [])
+            if patterns and c.compactions > c.retention_checked:
+                c.retention_checked = c.compactions
+                in_ctx, in_post = retention_hits(msgs, post_message_indices(msgs, sig), patterns)
+                record_event("retention", **tags, index=c.compactions, at_turn=c.turns,
+                             in_context=in_ctx, in_post=in_post)
 
         if not is_agent_call or trig.mode == "native":
             save_counters(c)
@@ -237,6 +299,15 @@ def compaction_filter(policy: CompactionPolicy, harness: str):
         output = await model.generate(msgs, tools, tool_choice, config)
         if output.usage is not None:
             c.last_input_tokens = output.usage.input_tokens
+        if trig.mode == "at_user_turns":
+            ut = store().get(TURN_KEY, 0)
+            reason = user_turn_force(trig, c, ut, ends_turn=not output.message.tool_calls)
+            save_counters(c)
+            if reason is not None:
+                record_event("force", **tags, at_turn=c.turns, reported_tokens=force_tokens,
+                             user_turn=ut, target=c.pending_user_turn, reason=reason)
+                return with_reported_input_tokens(output, force_tokens)
+            return with_reported_input_tokens(output, SUPPRESSED_USAGE)
         save_counters(c)
         if trig.mode != "never" and should_force(msgs + [output.message], c):
             record_event("force", **tags, at_turn=c.turns, reported_tokens=force_tokens)

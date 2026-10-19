@@ -13,7 +13,7 @@ import pandas as pd
 from inspect_ai.log import list_eval_logs, read_eval_log
 
 CONFIG_KEYS = ("harness", "policy", "pre_mode", "post_mode", "post_transform", "trigger",
-               "window_tokens", "trigger_n", "trigger_turns", "max_compactions", "summarizer_model")
+               "window_tokens", "trigger_n", "trigger_turns", "trigger_user_turns", "max_compactions", "summarizer_model")
 
 
 def _logs(path: str | Path):

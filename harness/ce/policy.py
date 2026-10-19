@@ -31,6 +31,13 @@ class CompactionCounters:
     turns_since_compaction: int = 0
     compactions: int = 0
     last_input_tokens: int = 0
+    # at_user_turns bookkeeping: scripted user turns whose compaction has happened, the turn
+    # a forced-but-not-yet-realized compaction is for, and the last user turn an agent call
+    # was seen in
+    user_turns_done: list[int] = field(default_factory=list)
+    pending_user_turn: int | None = None
+    seen_user_turn: int = -1
+    retention_checked: int = 0  # last compaction index whose retention was recorded
 
 
 @dataclass
@@ -41,6 +48,11 @@ class Trigger:
       native       leave it to the harness's threshold (`window_tokens`, see below)
       every_n      force a compaction after every `n` normal model calls
       at_turns     force a compaction after the listed normal-call indices (1-based)
+      at_user_turns  compact at the boundary before each listed scripted user turn (0-based
+                   index into the scenario's `turns`, so 1 = before the second user message).
+                   Forced on the turn-ending output of the previous user turn; if the harness
+                   has not compacted by the first agent call of the listed turn, forced again
+                   there (logged as `fallback`)
       on_event     force a compaction when `predicate(messages, counters)` is True
       never        report low usage so the harness never auto-compacts
     window_tokens: the context window the harness is told it has; its native auto-compact
@@ -49,10 +61,11 @@ class Trigger:
     max_compactions: stop forcing after this many compactions (None = unlimited).
     """
 
-    mode: Literal["native", "every_n", "at_turns", "on_event", "never"] = "native"
+    mode: Literal["native", "every_n", "at_turns", "at_user_turns", "on_event", "never"] = "native"
     window_tokens: int | None = None
     n: int = 10
     turns: Sequence[int] = ()
+    user_turns: Sequence[int] = ()
     predicate: EventPredicate | None = None
     max_compactions: int | None = None
 
@@ -115,6 +128,7 @@ class CompactionPolicy:
             "window_tokens": self.trigger.window_tokens,
             "trigger_n": self.trigger.n if self.trigger.mode == "every_n" else None,
             "trigger_turns": list(self.trigger.turns) or None,
+            "trigger_user_turns": list(self.trigger.user_turns) or None,
             "max_compactions": self.trigger.max_compactions,
             "summarizer_model": self.summarizer_model,
         }

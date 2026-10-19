@@ -26,7 +26,7 @@ bridge, where `ce/filter.py` applies the experiment's compaction policy and logs
 | **Pre-compaction prompt** | The harness builds its own compaction request; the filter finds the prompt message and replaces / appends / prepends text | `pre=replace\|append\|prepend`, `pre_text=...` or `pre_file=path` |
 | **Post-compaction message** | Every call after a compaction contains the harness's wrapper + summary; the filter splits it and re-renders it the same way on every call | `post=template\|wrap`, `post_template="...{summary}..."` or `post_file`, `post_prefix`, `post_suffix` |
 | **Summary edits** | Text planted inside the real post-compaction summary (or any `PostPrompt.summary_transform(summary) -> str` in Python) | `summary_append=...`, `summary_prepend=...` |
-| **When to compact** | The harness's own auto-compact logic decides; the filter controls the *reported* context usage. `native` = harness threshold from `window`; `every_n` / `at_turns` force a compaction after N agent calls / at given calls; `never` keeps usage low | `trigger=native\|every_n\|at_turns\|never`, `n=`, `turns=3,8`, `max_compactions=`, `window=` |
+| **When to compact** | The harness's own auto-compact logic decides; the filter controls the *reported* context usage. `native` = harness threshold from `window`; `every_n` / `at_turns` force a compaction after N agent calls / at given calls; `at_user_turns` compacts at the boundary before the listed scripted user turns (0-based); `never` keeps usage low | `trigger=native\|every_n\|at_turns\|at_user_turns\|never`, `n=`, `turns=3,8`, `user_turns=1,2`, `max_compactions=`, `window=` |
 | **Context window** | Claude Code: `CLAUDE_CODE_AUTO_COMPACT_WINDOW`; Codex: `model_context_window` + `model_auto_compact_token_limit` (0.9×) | `window=` (or env `CE_DEFAULT_WINDOW`) |
 | **Summarizer model** | Compaction calls routed to a different Inspect model | `summarizer=openai-api/local/other-model` |
 | **Anchors** | Scenario `anchors:` text is written to `CLAUDE.md` and `AGENTS.md` (files the harnesses reload) | scenario YAML |
@@ -68,7 +68,7 @@ e.g. `--model anthropic/claude-sonnet-5-5` (needs `ANTHROPIC_API_KEY` on the box
 YAML files in `scenarios/` (format documented in `ce/scenario.py`): workspace files,
 generated padding files (to build up context), mocked external services (`env/mocksvc.py`
 logs every request to `/var/log/ce/requests.jsonl`), anchors, scripted user turns, and
-checks. Checks are deterministic (`request`, `file`, `reply_regex`, `command`); optional
+checks. Checks are deterministic (`request` (optionally scoped to one scripted `turn:`), `file`, `reply_regex`, `command`); `retain:` regexes are checked against everything the successor sees after each compaction; optional
 `judge:` items are scored by `-T judge_model=<model>` (use a different family than the agent).
 
 ## Outputs
