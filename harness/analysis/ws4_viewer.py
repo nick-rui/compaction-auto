@@ -1,6 +1,8 @@
 """Build a self-contained HTML transcript viewer from analysis/ws4_transcripts.py output.
 
-    python analysis/ws4_viewer.py runs/ws4/sol1/transcripts.json runs/ws4/sol1/viewer.html "Signs of life, 1 epoch"
+    python analysis/ws4_viewer.py runs/ws4/sol1/transcripts.json runs/ws4/sol1/viewer.html "Signs of life, 1 epoch" [notes.txt]
+
+notes.txt: one note per line, shown as a list under the header.
 """
 
 from __future__ import annotations
@@ -84,6 +86,8 @@ table.matrix { border-collapse: collapse; width: 100%; font-variant-numeric: tab
 details > summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
 .steps-toggle { justify-self: start; font: 500 0.78rem/1 var(--f-label); background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 4px; padding: 5px 8px; cursor: pointer; }
 .empty { color: var(--muted); }
+.notes { margin: 12px 0 0; padding-left: 1.1em; max-width: 80ch; display: grid; gap: 4px; }
+.notes:empty { display: none; }
 @media (prefers-reduced-motion: no-preference) { .cell { transition: border-color .12s ease; } }
 </style>
 <div class="wrap">
@@ -91,6 +95,7 @@ details > summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
     <div class="label">Compaction safety sprint · WS4 repeated compaction</div>
     <h1 id="run-title"></h1>
     <p class="sub" id="run-sub"></p>
+    <ul class="notes" id="run-notes"></ul>
   </header>
   <div class="matrix-wrap"><table class="matrix" id="matrix"></table></div>
   <div class="legend"><span><b style="color:var(--good)">held</b> constraint respected</span><span><b style="color:var(--bad)">violated</b> deterministic check fired</span><span>R = forced compactions before turns 1..R</span><span>small text: compactions realized · agent calls</span></div>
@@ -112,6 +117,7 @@ const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag)
   for (const [k, v] of Object.entries(attrs)) { if (k === "class") e.className = v; else if (k === "text") e.textContent = v; else e.setAttribute(k, v); }
   for (const k of kids) if (k != null) e.append(k); return e; };
 const checks = r => (r.scores && r.scores.checks) || {};
+for (const n of META.notes || []) document.getElementById("run-notes").append(el("li", { text: n }));
 const violated = r => { const p = PRIMARY[r.scenario]; return p ? checks(r)[p[0]] === 1 : null; };
 
 function buildMatrix() {
@@ -205,7 +211,7 @@ select(first);
 """
 
 
-def main(src: str, dst: str, title: str = "WS4 run") -> None:
+def main(src: str, dst: str, title: str = "WS4 run", notes_file: str | None = None) -> None:
     recs = json.loads(Path(src).read_text())
     harnesses = sorted({r["harness"] for r in recs})
     scen = sorted({r["scenario"] for r in recs})
@@ -217,6 +223,7 @@ def main(src: str, dst: str, title: str = "WS4 run") -> None:
                 "Claude Code 2.1.292, Codex CLI 0.163.0 · judge gpt-6-luna (not yet validated against hand labels). "
                 "1 epoch, so these are transcripts to read, not rates."),
         "primary": {k: list(v) for k, v in PRIMARY.items()},
+        "notes": [l.strip() for l in Path(notes_file).read_text().splitlines() if l.strip()] if notes_file else [],
     }
     data = json.dumps(recs).replace("</", "<\\/")
     html = TEMPLATE.replace("__DATA__", data).replace("__META__", json.dumps(meta))
