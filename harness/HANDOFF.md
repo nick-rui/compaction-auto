@@ -98,6 +98,8 @@ API models (VPS, OpenRouter): `OPENROUTER_API_KEY=...` and `--model openrouter/<
 14. With `trigger=native`, the window must sit well above what the harness keeps after
     compacting (Claude Code keeps a recent tail; big file reads made it ~50k here), or the
     harness re-compacts immediately and Claude Code aborts on thrash.
+16. SWE-bench via inspect_evals 0.25 needs `swebench<5` (`uv pip install -e '.[swe]'`);
+    swebench 5.x removed `MAP_REPO_VERSION_TO_SPECS` and scoring crashes after the run.
 15. vLLM and the router bind to 127.0.0.1. The GPU box has no firewall (ufw inactive); an
     earlier run had them on 0.0.0.0. Keep it local and tunnel.
 
