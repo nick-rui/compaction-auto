@@ -5,6 +5,7 @@ Build any policy from flat parameters:
   pre=harness|replace|append|prepend      pre_text=<str> or pre_file=<path>
   post=harness|template|wrap              post_template=<str with {summary}> or post_file=<path>
                                           post_prefix=<str>  post_suffix=<str>
+  summary_append=<str>  summary_prepend=<str>   plant text inside the summary the successor sees
   summarizer=<inspect model name>
 Presets (policy=<name>) fill in defaults; explicit parameters override them.
 """
@@ -71,6 +72,8 @@ def build_policy(
     post_file: str | None = None,
     post_prefix: str | None = None,
     post_suffix: str | None = None,
+    summary_append: str | None = None,
+    summary_prepend: str | None = None,
     summarizer: str | None = None,
 ) -> CompactionPolicy:
     p = dict(PRESETS.get(policy, {}))
@@ -80,7 +83,7 @@ def build_policy(
         trigger=trigger, window=window, n=n, turns=turns, max_compactions=max_compactions,
         pre=pre, pre_text=pre_text, pre_file=pre_file, post=post, post_template=post_template,
         post_file=post_file, post_prefix=post_prefix, post_suffix=post_suffix,
-        summarizer=summarizer,
+        summary_append=summary_append, summary_prepend=summary_prepend, summarizer=summarizer,
     )
     p.update({k: v for k, v in overrides.items() if v is not None})
     t = p.get("turns")
@@ -88,10 +91,21 @@ def build_policy(
         p["turns"] = [int(t)]
     elif isinstance(t, str):
         p["turns"] = [int(x) for x in t.split(",") if x.strip()]
-    for k in ("post_prefix", "post_suffix"):
+    for k in ("post_prefix", "post_suffix", "summary_append", "summary_prepend"):
         if k in p:
             p[k] = _as_text(p[k])
-    name_bits = [policy] + [f"{k}={v}" for k, v in overrides.items() if v is not None and k not in ("pre_text", "post_template")]
+    name_bits = [policy] + [f"{k}={v}" for k, v in overrides.items() if v is not None and k not in ("pre_text", "post_template", "summary_append", "summary_prepend")]
+    if summary_append is not None or summary_prepend is not None:
+        name_bits.append("summary_edit")
+    app, pre_ = p.get("summary_append"), p.get("summary_prepend")
+    transform = None
+    if app or pre_:
+        def transform(summary: str, _a=app or "", _p=pre_ or "") -> str:
+            # keep the summary's own leading/trailing whitespace around the inserted lines
+            body = summary.strip("\n")
+            head = summary[: len(summary) - len(summary.lstrip("\n"))]
+            tail = summary[len(summary.rstrip("\n")):]
+            return head + (f"{_p}\n" if _p else "") + body + (f"\n{_a}" if _a else "") + tail
     return CompactionPolicy(
         name=",".join(name_bits),
         pre=PrePrompt(mode=p.get("pre", "harness"), text=_read(p.get("pre_text"), p.get("pre_file"))),
@@ -100,6 +114,7 @@ def build_policy(
             template=_read(p.get("post_template"), p.get("post_file")) or "{summary}",
             prefix=p.get("post_prefix", ""),
             suffix=p.get("post_suffix", ""),
+            summary_transform=transform,
         ),
         trigger=Trigger(
             mode=p.get("trigger", "native"),

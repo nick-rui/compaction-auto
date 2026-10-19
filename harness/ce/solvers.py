@@ -41,6 +41,8 @@ def compaction_agent(
     post_file: str | None = None,
     post_prefix: str | None = None,
     post_suffix: str | None = None,
+    summary_append: str | None = None,
+    summary_prepend: str | None = None,
     summarizer: str | None = None,
     system_prompt: str | None = None,
 ) -> Solver:
@@ -50,7 +52,8 @@ def compaction_agent(
         policy, trigger=trigger, window=window, n=n, turns=turns,
         max_compactions=max_compactions, pre=pre, pre_text=pre_text, pre_file=pre_file,
         post=post, post_template=post_template, post_file=post_file,
-        post_prefix=post_prefix, post_suffix=post_suffix, summarizer=summarizer,
+        post_prefix=post_prefix, post_suffix=post_suffix, summary_append=summary_append,
+        summary_prepend=summary_prepend, summarizer=summarizer,
     )
     agent = make_agent(harness, pol, version=version, model_config=model_config,  # type: ignore[arg-type]
                        system_prompt=system_prompt, cwd=None)

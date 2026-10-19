@@ -80,3 +80,15 @@ def test_normalize_system_messages():
     assert "late" in out[2].text
     single = [ChatMessageSystem(content="s"), ChatMessageUser(content="u")]
     assert normalize_system_messages(single) is single
+
+
+@pytest.mark.parametrize("harness,version", CASES)
+def test_summary_append_cli(harness, version):
+    from ce.policies import build_policy
+    sig = SIGNATURES[harness]
+    post = (GOLDENS / harness / version / "post_message.txt").read_text()
+    pol = build_policy("harness_default", summary_append="PLANTED NOTE", summary_prepend="TOP NOTE")
+    new, placed = apply_post(post, pol.post, sig)
+    assert "PLANTED NOTE" in placed and placed.lstrip().startswith("TOP NOTE")
+    before, _, after = split_post_message(post, sig)
+    assert new.startswith(before) and new.endswith(after)

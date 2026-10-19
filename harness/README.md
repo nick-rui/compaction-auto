@@ -1,5 +1,7 @@
 # compaction-evals
 
+**Agents: start with `HANDOFF.md`** (project workstreams + operating rules).
+
 Run real agent harnesses (Claude Code, Codex CLI) on scripted tasks and control everything
 about compaction: the pre-compaction prompt, the post-compaction message, and when
 compaction fires. Built on [Inspect](https://inspect.aisi.org.uk/) +
@@ -23,7 +25,7 @@ bridge, where `ce/filter.py` applies the experiment's compaction policy and logs
 |---|---|---|
 | **Pre-compaction prompt** | The harness builds its own compaction request; the filter finds the prompt message and replaces / appends / prepends text | `pre=replace\|append\|prepend`, `pre_text=...` or `pre_file=path` |
 | **Post-compaction message** | Every call after a compaction contains the harness's wrapper + summary; the filter splits it and re-renders it the same way on every call | `post=template\|wrap`, `post_template="...{summary}..."` or `post_file`, `post_prefix`, `post_suffix` |
-| **Summary edits** | `PostPrompt.summary_transform(summary) -> str` (Python) — delete or plant content in what the successor sees | Python API |
+| **Summary edits** | Text planted inside the real post-compaction summary (or any `PostPrompt.summary_transform(summary) -> str` in Python) | `summary_append=...`, `summary_prepend=...` |
 | **When to compact** | The harness's own auto-compact logic decides; the filter controls the *reported* context usage. `native` = harness threshold from `window`; `every_n` / `at_turns` force a compaction after N agent calls / at given calls; `never` keeps usage low | `trigger=native\|every_n\|at_turns\|never`, `n=`, `turns=3,8`, `max_compactions=`, `window=` |
 | **Context window** | Claude Code: `CLAUDE_CODE_AUTO_COMPACT_WINDOW`; Codex: `model_context_window` + `model_auto_compact_token_limit` (0.9×) | `window=` (or env `CE_DEFAULT_WINDOW`) |
 | **Summarizer model** | Compaction calls routed to a different Inspect model | `summarizer=openai-api/local/other-model` |
