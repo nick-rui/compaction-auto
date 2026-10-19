@@ -64,7 +64,20 @@ API models (VPS, OpenRouter): `OPENROUTER_API_KEY=...` and `--model openrouter/<
   user turn resumes the same CLI session.
 * Real traffic recorded in `goldens/` (Claude Code 2.1.292, Codex 0.163.0);
   `tests/test_signatures.py` passes against them (8 tests).
-* `scripts/validate_controls.py` results: see the table at the end of this file.
+* `scripts/validate_controls.py` (smoke scenario unless noted; Qwen3.8-27B):
+
+  | Control | Claude Code 2.1.292 | Codex CLI 0.163.0 |
+  |---|---|---|
+  | `rewrite`: pre-prompt appended, post template | PASS (model saw both; summary followed the pre instruction) | PASS |
+  | `at_turns=3` | PASS (compaction after call 3) | PASS |
+  | `every_n=4`, max 2 | PASS (calls 4, 8) | PASS |
+  | `never` | PASS (0 in 19 calls) | PASS (0 in 17) |
+  | `native` (growth scenario) | PASS at window 110k (3 natural compactions at calls 15, 20, 24; task finished). At 80k it thrashed (gotcha 14) | PASS (window 40k: 6 natural compactions, task finished) |
+
+* SWE-bench Verified Mini pilot (Codex, no forced compaction, 2 tasks): runs and scores
+  end to end; 0/2 resolved, ~14 agent calls and ≤24k context per task. So horizons are
+  short and the baseline may be low: run the full 50-task baseline on both harnesses
+  before the K sweep to confirm there is headroom and enough calls for K to matter.
 
 ## Gotchas found while building (all handled in code unless noted)
 
@@ -95,13 +108,18 @@ API models (VPS, OpenRouter): `OPENROUTER_API_KEY=...` and `--model openrouter/<
 13. Qwen sometimes ignores Claude Code's "TEXT ONLY" compaction instruction and calls tools;
     such compactions are logged with `succeeded=False` (scored as `n_failed_compactions`).
     This is an open-model behaviour worth reporting, not an infra bug.
-14. With `trigger=native`, the window must sit well above what the harness keeps after
-    compacting (Claude Code keeps a recent tail; big file reads made it ~50k here), or the
-    harness re-compacts immediately and Claude Code aborts on thrash.
-16. SWE-bench via inspect_evals 0.25 needs `swebench<5` (`uv pip install -e '.[swe]'`);
-    swebench 5.x removed `MAP_REPO_VERSION_TO_SPECS` and scoring crashes after the run.
+14. **Claude Code 2.1.292 barely shrinks context when it compacts**: it keeps a large
+    recent tail verbatim (in the growth scenario, 49k tokens before compaction became 52k
+    after). With `trigger=native` the threshold (about window minus 30k) must sit well
+    above tail + summary, or it re-compacts immediately and aborts on thrash (80k window
+    failed; see the validation table for 110k). For the K sweep this means a Claude Code
+    "compaction" replaces only the older part of the context; report it.
 15. vLLM and the router bind to 127.0.0.1. The GPU box has no firewall (ufw inactive); an
     earlier run had them on 0.0.0.0. Keep it local and tunnel.
+16. SWE-bench via inspect_evals 0.25 needs `swebench<5` (`uv pip install -e '.[swe]'`);
+    swebench 5.x removed `MAP_REPO_VERSION_TO_SPECS` and scoring crashes after the run.
+17. ssh commands that block for many minutes sometimes drop (exit 255). Run waits inside
+    tmux on the box and poll briefly, rather than holding one long ssh open.
 
 ## Planned experiment: performance vs compaction frequency (Nick, 2026-10-19)
 
@@ -118,8 +136,7 @@ agent calls through its own code path.
     -S harness=codex_cli -S trigger=every_n -S n=4 -S window=120000 \
     --time-limit 3600 --log-dir runs/kswe/codex_k4
   ```
-  A 2-task Codex pilot with no forced compaction was started in tmux `swepilot`
-  (`runs/swe_pilot`); check it first for solve rate and agent calls per task.
+  A 2-task Codex pilot ran (`runs/swe_pilot`); results are under Verified above.
 * Conditions: K ∈ {1, 2, 4, 8, 16, 32} plus `native` (harness threshold at the real
   window) as the no-forced-compaction baseline; both harnesses; ≥3 epochs.
 * Primary metric: resolve rate vs K (log x). Also log realized compactions,

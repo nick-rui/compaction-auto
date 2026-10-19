@@ -30,7 +30,7 @@ POST = "CE-POST-MARKER (summary of earlier context)\n\n{summary}"
 # native windows the smoke task outgrows once; too small and the harness thrashes
 # (base context is ~9k tokens for Codex, ~14k for Claude Code; Claude Code also keeps a
 # recent tail, ~50k here, so its threshold must sit well above that)
-NATIVE_WINDOW = {"claude_code": 80000, "codex_cli": 40000}
+NATIVE_WINDOW = {"claude_code": 110000, "codex_cli": 40000}
 
 CONTROLS = {
     "rewrite": {"trigger": "every_n", "n": 5, "max_compactions": 1, "pre": "append",
