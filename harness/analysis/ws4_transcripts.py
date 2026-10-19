@@ -92,8 +92,16 @@ def sample_record(log, s) -> dict:
 def main(dirs: list[str]) -> None:
     recs = []
     for d in dirs:
+        # one log per run directory: the newest successful one (an eval-retry writes a new log
+        # next to the failed original and carries its completed samples over), else the newest
+        by_dir: dict[str, list] = {}
         for info in list_eval_logs(d, recursive=True):
-            log = read_eval_log(info, resolve_attachments=True)
+            by_dir.setdefault(str(Path(info.name).parent), []).append(info)
+        for infos in by_dir.values():
+            heads = sorted(((read_eval_log(i, header_only=True), i) for i in infos),
+                           key=lambda h: h[0].eval.created, reverse=True)
+            ok = [i for h, i in heads if h.status == "success"]
+            log = read_eval_log(ok[0] if ok else heads[0][1], resolve_attachments=True)
             recs.extend(sample_record(log, s) for s in log.samples or [])
     recs.sort(key=lambda r: (r["scenario"] or "", r["harness"] or "", r["R"]))
     json.dump(recs, sys.stdout, indent=1)
