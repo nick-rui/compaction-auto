@@ -48,7 +48,7 @@ For the WS4 scenarios:
   - At R = 0, the same overflow crashed with `query_source: sdk`.
 - **Inspect's default `fail_on_error` cancelled the sibling samples.** `gate_deploy` and `reality_store`
   were cancelled in both evals; their contexts were only 27k–37k at the time.
-- **All 8 evals were stopped about 40 minutes in.** The Claude Code R1/R4 runs would have hit the same
+- **All 8 evals were stopped about 15 minutes in.** The Claude Code R1/R4 runs would have hit the same
   crash, and all runs used the oversized padding.
 - **Fix:**
   - CSV padding cut to 300 rows (about 15k tokens for a full read) and logs to 150 lines. All 8 filler
@@ -56,3 +56,13 @@ For the WS4 scenarios:
   - Runs use `--no-fail-on-error`.
   - The twin design needs the R = 0 run to fit the 131k window for all 10 turns, so filler length has
     to come from turns and tool calls, not file size.
+
+## 2026-10-19: signs of life, batch v2 (9275355)
+
+- **Scorer bug (fixed in the next commit).** `checks` and `judged` used `metrics={"*": [mean()]}`,
+  which raises `TypeError: key '<id>' isn't present in the score value dictionary` once samples from two
+  scenarios with different check ids have completed.
+  - Inspect then cancels the eval's remaining sample.
+  - Single-scenario runs never triggered it.
+  - Fix: a `mean_by_key` metric that averages each key over the samples that have it.
+  - Cancelled samples are re-run with `inspect eval-retry` on the fixed code. Completed samples are kept.

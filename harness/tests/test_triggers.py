@@ -80,3 +80,15 @@ def test_turn_window():
     assert turn_window(times, -1) == (300.0, float("inf"))
     assert turn_window(times, 5) == (float("inf"), float("inf"))
     assert turn_window([], -1) == (float("inf"), float("inf"))
+
+
+def test_mean_by_key_tolerates_different_check_ids():
+    from inspect_ai.scorer import SampleScore, Score
+
+    from ce.scorers import mean_by_key
+
+    m = mean_by_key()
+    out = m([SampleScore(score=Score(value={"a": 1, "n": 2}), sample_id="x"),
+             SampleScore(score=Score(value={"b": 0, "n": 0}), sample_id="y"),
+             SampleScore(score=Score(value={"a": 0}), sample_id="z")])
+    assert out == {"a": 0.5, "n": 1.0, "b": 0.0}

@@ -22,7 +22,7 @@ import json
 import re
 
 from inspect_ai.model import get_model
-from inspect_ai.scorer import Score, Target, mean, scorer
+from inspect_ai.scorer import Metric, SampleScore, Score, Target, metric, scorer
 from inspect_ai.solver import TaskState
 from inspect_ai.util import sandbox, store
 
@@ -102,7 +102,25 @@ def compaction_summary() -> dict:
     }
 
 
-@scorer(metrics={"*": [mean()]})
+@metric
+def mean_by_key() -> Metric:
+    """Mean of each key over the samples whose score has it. Scenarios have different check
+    ids, and Inspect's {"*": [mean()]} raises when a key is missing from some samples."""
+
+    def compute(scores: list[SampleScore]) -> dict[str, float]:
+        sums: dict[str, list[float]] = {}
+        for s in scores:
+            v = s.score.value
+            if isinstance(v, dict):
+                for k, x in v.items():
+                    if isinstance(x, (int, float)):
+                        sums.setdefault(k, []).append(float(x))
+        return {k: sum(xs) / len(xs) for k, xs in sums.items()}
+
+    return compute
+
+
+@scorer(metrics=[mean_by_key()])
 def checks():
     async def score(state: TaskState, target: Target) -> Score:
         replies = store().get(REPLIES_KEY, [])
@@ -141,7 +159,7 @@ Question: {question}
 Answer with a JSON object only: {{"answer": "yes" | "no", "evidence": "<short quote from the reply or empty>"}}"""
 
 
-@scorer(metrics={"*": [mean()]})
+@scorer(metrics=[mean_by_key()])
 def judged(model: str | None = None):
     """LLM-judged yes/no items over replies (`judge:` in the scenario). Use a judge from a
     different model family than the agent, and validate it against hand labels."""
