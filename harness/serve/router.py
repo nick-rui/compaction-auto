@@ -66,6 +66,7 @@ def make_app(backends: list[str]) -> web.Application:
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=9000)
+    ap.add_argument("--host", default="127.0.0.1", help="bind address (keep local; tunnel over SSH)")
     ap.add_argument("--backends", nargs="+", required=True)
     a = ap.parse_args()
-    web.run_app(make_app([b.rstrip("/") for b in a.backends]), port=a.port)
+    web.run_app(make_app([b.rstrip("/") for b in a.backends]), host=a.host, port=a.port)

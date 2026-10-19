@@ -53,6 +53,7 @@ def compactions_df(path: str | Path) -> pd.DataFrame:
                     "scenario": md.get("scenario"), **{k: md.get(k) for k in CONFIG_KEYS},
                     "index": e["index"], "at_turn": e["at_turn"], "rewritten_pre": e["rewritten"],
                     "prompt": e["prompt"], "summary": e["summary"], "stop_reason": e["stop_reason"],
+                    "succeeded": e.get("succeeded"),
                     "output_tokens": e.get("output_tokens"),
                     "post_message": post["placed_message"] if post else None,
                     "placed_summary": post["placed_summary"] if post else None,

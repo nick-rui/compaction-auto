@@ -12,9 +12,10 @@ from .policy import CompactionPolicy
 
 Harness = Literal["claude_code", "codex_cli"]
 
-# Pinned harness versions. Compaction behaviour changes between releases, so every run
-# records the version it used; bump deliberately.
-DEFAULT_VERSIONS: dict[str, str] = {"claude_code": "stable", "codex_cli": "latest"}
+# Pinned harness versions = the versions goldens/ were recorded from. Compaction behaviour
+# and prompt text change between releases; to bump, run a smoke eval with the new version,
+# re-run scripts/capture_goldens.py, and make tests/ pass before using it in experiments.
+DEFAULT_VERSIONS: dict[str, str] = {"claude_code": "2.1.292", "codex_cli": "0.163.0"}
 
 
 def native_trigger_settings(harness: Harness, policy: CompactionPolicy) -> tuple[dict, dict]:
@@ -40,10 +41,11 @@ def make_agent(
     *,
     version: str | None = None,
     model: str | None = None,
+    model_config: str | None = None,
     system_prompt: str | None = None,
     env: dict[str, str] | None = None,
     config_overrides: dict[str, str] | None = None,
-    cwd: str = "/workspace",
+    cwd: str | None = "/workspace",
     debug: bool = False,
 ) -> Agent:
     policy = policy or CompactionPolicy()
@@ -54,6 +56,10 @@ def make_agent(
         return claude_code(
             system_prompt=system_prompt,
             model=model,
+            # identity Claude Code presents ("You are powered by ..."); for Claude models
+            # reached through OpenRouter pass the Anthropic id (e.g. claude-sonnet-5-5) so
+            # Claude Code recognises it and uses the right window / features
+            model_config=model_config,
             filter=filt,
             cwd=cwd,
             version=version,
@@ -65,6 +71,7 @@ def make_agent(
         return codex_cli(
             system_prompt=system_prompt,
             model=model,
+            model_config=model_config,
             filter=filt,
             cwd=cwd,
             version=version,

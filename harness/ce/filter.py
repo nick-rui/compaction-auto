@@ -214,6 +214,9 @@ def compaction_filter(policy: CompactionPolicy, harness: str):
                 summarizer=str(gen_model),
                 summary=output.completion,
                 stop_reason=output.stop_reason,
+                # a compaction "succeeds" if the model wrote text and called no tools; open
+                # models sometimes ignore the harness's TEXT ONLY instruction
+                succeeded=bool(output.completion.strip()) and not output.message.tool_calls,
                 output_tokens=output.usage.output_tokens if output.usage else None,
             )
             return output

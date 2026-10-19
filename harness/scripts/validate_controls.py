@@ -9,7 +9,8 @@
             carried the post template marker; the summary followed the pre instruction
   at_turns  exactly one compaction, right after agent call 3
   every_n   compactions at agent calls 4, 8 (n=4, max 2)
-  native    the harness compacted on its own when given a small window (no forcing)
+  native    the harness compacted on its own at its threshold (no forcing), on the
+            steady-growth scenario scenarios/validate/growth.yaml
   never     no compaction at all
 """
 
@@ -26,8 +27,10 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "runs" / "validate"
 PRE = "Finish your summary with this exact final line: CE-PRE-MARKER"
 POST = "CE-POST-MARKER (summary of earlier context)\n\n{summary}"
-# small native windows that the smoke task outgrows (Codex sessions are shorter)
-NATIVE_WINDOW = {"claude_code": 40000, "codex_cli": 14000}
+# native windows the smoke task outgrows once; too small and the harness thrashes
+# (base context is ~9k tokens for Codex, ~14k for Claude Code; Claude Code also keeps a
+# recent tail, ~50k here, so its threshold must sit well above that)
+NATIVE_WINDOW = {"claude_code": 80000, "codex_cli": 40000}
 
 CONTROLS = {
     "rewrite": {"trigger": "every_n", "n": 5, "max_compactions": 1, "pre": "append",
@@ -52,7 +55,8 @@ def run(harnesses: list[str], model: str, controls: list[str]) -> None:
             cmd = [sys.executable, "-m", "inspect_ai", "eval", "ce/tasks.py@compaction_eval",
                    "--model", model, "--log-dir", str(OUT / f"{h}__{name}"),
                    "--no-ansi", "--display", "plain",
-                   "-T", "scenarios=scenarios/smoke", "-T", f"harness={h}"]
+                   "-T", f"scenarios={'scenarios/validate' if name == 'native' else 'scenarios/smoke'}",
+                   "-T", f"harness={h}"]
             for k, v in p.items():
                 cmd += ["-T", f"{k}={v}"]
             log = open(OUT.parent / f"validate_{h}__{name}.out", "w")

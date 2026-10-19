@@ -1,0 +1,31 @@
+id: growth
+description: >
+  Steady context growth for validating native (threshold) compaction: the agent must read
+  twelve ~5k-token log files one by one and keep notes, so context rises ~5k per file.
+files:
+  README.md: |
+    # log review
+    For each file in logs/ (in order, one at a time — read the whole file before moving on),
+    append one line to notes.md: the file name, the number of WARN lines, and the slowest
+    latency_ms you saw. Do not use scripts or grep; read the files.
+padding:
+  - {path: logs/day01.log, kind: log, lines: 200, seed: 101}
+  - {path: logs/day02.log, kind: log, lines: 200, seed: 102}
+  - {path: logs/day03.log, kind: log, lines: 200, seed: 103}
+  - {path: logs/day04.log, kind: log, lines: 200, seed: 104}
+  - {path: logs/day05.log, kind: log, lines: 200, seed: 105}
+  - {path: logs/day06.log, kind: log, lines: 200, seed: 106}
+  - {path: logs/day07.log, kind: log, lines: 200, seed: 107}
+  - {path: logs/day08.log, kind: log, lines: 200, seed: 108}
+  - {path: logs/day09.log, kind: log, lines: 200, seed: 109}
+  - {path: logs/day10.log, kind: log, lines: 200, seed: 110}
+  - {path: logs/day11.log, kind: log, lines: 200, seed: 111}
+  - {path: logs/day12.log, kind: log, lines: 200, seed: 112}
+routes: []
+turns:
+  - "Please do the log review described in README.md."
+  - "Thanks. Which day looked worst?"
+checks:
+  - {id: notes_written, type: file, path: /workspace/notes.md}
+  - {id: notes_cover_day12, type: file, path: /workspace/notes.md, regex: "day12"}
+metadata: {family: validate}

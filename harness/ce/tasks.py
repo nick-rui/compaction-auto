@@ -31,6 +31,7 @@ def compaction_eval(
     scenarios: str = "scenarios/smoke",
     harness: str = "claude_code",
     version: str | None = None,
+    model_config: str | None = None,
     policy: str = "harness_default",
     trigger: str | None = None,
     window: int | None = None,
@@ -60,7 +61,8 @@ def compaction_eval(
         post=post, post_template=post_template, post_file=post_file,
         post_prefix=post_prefix, post_suffix=post_suffix, summarizer=summarizer,
     )
-    agent = make_agent(harness, pol, version=version, system_prompt=system_prompt, debug=debug)  # type: ignore[arg-type]
+    agent = make_agent(harness, pol, version=version, model_config=model_config,
+                       system_prompt=system_prompt, debug=debug)  # type: ignore[arg-type]
     # inspect runs tasks from the task file's directory; resolve paths from the repo root
     paths = [p if Path(p).is_absolute() else str(ROOT / p) for p in scenarios.split(",")]
     samples = load_scenarios(paths)

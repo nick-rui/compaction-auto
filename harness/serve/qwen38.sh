@@ -8,7 +8,7 @@ export CUDA_VISIBLE_DEVICES=${GPU:-0}
 export PATH="$PWD/.venv-vllm/bin:$PATH"   # JIT kernels need ninja from the venv
 exec .venv-vllm/bin/vllm serve "${MODEL_DIR:-$HOME/models/Qwen3.8-27B}" \
   --served-model-name "${SERVED_NAME:-qwen3.8-27b}" \
-  --port "${PORT:-8000}" \
+  --host 127.0.0.1 --port "${PORT:-8000}" \
   --max-model-len "${MAX_LEN:-131072}" \
   --gpu-memory-utilization 0.92 \
   --max-num-seqs "${MAX_SEQS:-64}" \

@@ -63,6 +63,7 @@ def compaction_summary() -> dict:
     comps = [e for e in events if e["kind"] == "compaction"]
     return {
         "n_compactions": len(comps),
+        "n_failed_compactions": sum(1 for e in comps if e.get("succeeded") is False),
         "n_forced": sum(e["kind"] == "force" for e in events),
         "compaction_turns": [e["at_turn"] for e in comps],
     }
