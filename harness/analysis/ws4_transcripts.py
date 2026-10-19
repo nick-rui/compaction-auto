@@ -43,8 +43,8 @@ def sample_record(log, s) -> dict:
     summaries = {e["summary"].strip()[:200] for e in comps}
     n_tool_msgs_seen = 0
     for e in s.events:
-        if e.event != "model":
-            continue
+        if e.event != "model" or not e.tools:
+            continue  # judge calls and harness side calls (titles etc.) carry no tools
         out = e.output.message
         text = (e.output.completion or "").strip()
         if text[:200] in summaries:
