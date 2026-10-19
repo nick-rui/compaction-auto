@@ -55,6 +55,9 @@ def test_build_policy_parses_user_turns():
     assert p.trigger.mode == "at_user_turns" and tuple(p.trigger.user_turns) == (1, 2, 4)
     assert p.describe()["trigger_user_turns"] == [1, 2, 4]
     assert tuple(build_policy(trigger="at_user_turns", user_turns=3).trigger.user_turns) == (3,)
+    # what `inspect eval -T user_turns=1,2,3` actually passes
+    assert tuple(build_policy(trigger="at_user_turns", user_turns=["1", "2", "3"]).trigger.user_turns) == (1, 2, 3)
+    assert tuple(build_policy(trigger="at_turns", turns=["3", "8"]).trigger.turns) == (3, 8)
 
 
 def test_retention_hits_context_vs_post():

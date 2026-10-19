@@ -88,12 +88,15 @@ def build_policy(
         summary_append=summary_append, summary_prepend=summary_prepend, summarizer=summarizer,
     )
     p.update({k: v for k, v in overrides.items() if v is not None})
+    # `-T turns=3,8` arrives as ["3", "8"]: inspect splits on commas but keeps strings
     for key in ("turns", "user_turns"):
         t = p.get(key)
         if isinstance(t, (int, float)):
             p[key] = [int(t)]
         elif isinstance(t, str):
             p[key] = [int(x) for x in t.split(",") if x.strip()]
+        elif isinstance(t, (list, tuple)):
+            p[key] = [int(x) for x in t]
     for k in ("post_prefix", "post_suffix", "summary_append", "summary_prepend"):
         if k in p:
             p[k] = _as_text(p[k])
