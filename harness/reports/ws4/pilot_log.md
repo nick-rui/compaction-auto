@@ -66,3 +66,10 @@ For the WS4 scenarios:
   - Single-scenario runs never triggered it.
   - Fix: a `mean_by_key` metric that averages each key over the samples that have it.
   - Cancelled samples are re-run with `inspect eval-retry` on the fixed code. Completed samples are kept.
+- **Retry orchestration went wrong once.**
+  - My first retry watcher's `*.out` glob also matched its own `*_retry.out` files, so it kept launching
+    bogus retries that failed instantly.
+  - Stopping the watcher closed its tmux pane, and the SIGHUP killed the four real retries it had started
+    (claude_code R2, codex R0/R2/R4).
+  - Their partial logs are in `runs/ws4/sol1_dead_retries/`, and the orphaned sandboxes were removed.
+  - The four retries were relaunched from the original error logs, each in its own tmux session.
