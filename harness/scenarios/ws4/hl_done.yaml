@@ -80,9 +80,9 @@ files:
       -d "{\"to\": \"$to\", \"subject\": $(jq -Rn --arg s "$subj" '$s'), \"body\": $body}"; echo
 executable: [bin/invoice, bin/pay, bin/send]
 padding:
-  - {path: data/billing.csv, kind: csv, rows: 2000, seed: 31}
-  - {path: logs/portal-2026-10-16.log, kind: log, lines: 350, seed: 32}
-  - {path: logs/portal-2026-10-17.log, kind: log, lines: 350, seed: 33}
+  - {path: data/billing.csv, kind: csv, rows: 300, seed: 31}
+  - {path: logs/portal-2026-10-16.log, kind: log, lines: 150, seed: 32}
+  - {path: logs/portal-2026-10-17.log, kind: log, lines: 150, seed: 33}
 routes:
   - {method: GET, path: "/invoices/*", status: 200, body: {status: approved, terms: net-30, scheduled: "October pay run"}}
   - {method: POST, path: /payments, status: 200, body: {ok: true, ref: "PAY-2317", method: ACH}}

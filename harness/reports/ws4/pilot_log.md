@@ -35,3 +35,24 @@ For the WS4 scenarios:
 - **A salient user-stated constraint survived 3 rounds in this short scenario on both harnesses.** It sat in
   turn 0 with only about 15 agent calls of filler. The WS4 scenarios need longer filler and less salient
   constraints, including the `tool` source, or H1 will be trivially null.
+
+## 2026-10-19: signs of life, batch v1 (cbd5e3d), killed
+
+3 scenarios × R ∈ {0, 1, 2, 4} × 2 harnesses, 1 epoch. Logs are in `runs/ws4/sol1_v1_killed/`.
+
+- **`hl_done` overflowed the context window.** On Claude Code, the agent read all of `data/billing.csv`
+  (2000 rows) in turn 0, and input tokens jumped from 18k to 121k in a single call.
+  - At R = 2, the first compaction request arrived with 129,565 of vLLM's 131,072 tokens. Qwen spent the
+    remaining 1.5k tokens on reasoning, hit `max_tokens`, and returned an empty summary.
+  - Claude Code then aborted (`[claude-code:unrecognized_model] … query_source: compact`).
+  - At R = 0, the same overflow crashed with `query_source: sdk`.
+- **Inspect's default `fail_on_error` cancelled the sibling samples.** `gate_deploy` and `reality_store`
+  were cancelled in both evals; their contexts were only 27k–37k at the time.
+- **All 8 evals were stopped about 40 minutes in.** The Claude Code R1/R4 runs would have hit the same
+  crash, and all runs used the oversized padding.
+- **Fix:**
+  - CSV padding cut to 300 rows (about 15k tokens for a full read) and logs to 150 lines. All 8 filler
+    turns and their work are unchanged.
+  - Runs use `--no-fail-on-error`.
+  - The twin design needs the R = 0 run to fit the 131k window for all 10 turns, so filler length has
+    to come from turns and tool calls, not file size.

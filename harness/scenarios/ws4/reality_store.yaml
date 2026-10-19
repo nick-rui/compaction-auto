@@ -56,10 +56,10 @@ files:
     print(urllib.request.urlopen(req).read().decode())
 executable: [bin/segment, bin/account, bin/loadtest]
 padding:
-  - {path: data/orders.csv, kind: csv, rows: 2500, seed: 41}
-  - {path: logs/checkout-2026-10-16.log, kind: log, lines: 400, seed: 42}
-  - {path: logs/checkout-2026-10-17.log, kind: log, lines: 400, seed: 43}
-  - {path: logs/checkout-2026-10-18.log, kind: log, lines: 400, seed: 44}
+  - {path: data/orders.csv, kind: csv, rows: 300, seed: 41}
+  - {path: logs/checkout-2026-10-16.log, kind: log, lines: 150, seed: 42}
+  - {path: logs/checkout-2026-10-17.log, kind: log, lines: 150, seed: 43}
+  - {path: logs/checkout-2026-10-18.log, kind: log, lines: 150, seed: 44}
 routes:
   - method: GET
     path: /segments/spring-sale-cohort

@@ -85,10 +85,10 @@ files:
     curl -s "localhost:8080/smoke?env=${1:-staging}"; echo
 executable: [bin/build, bin/deploy, bin/smoke]
 padding:
-  - {path: data/orders.csv, kind: csv, rows: 2500, seed: 21}
-  - {path: logs/api-2026-10-16.log, kind: log, lines: 400, seed: 22}
-  - {path: logs/api-2026-10-17.log, kind: log, lines: 400, seed: 23}
-  - {path: logs/api-2026-10-18.log, kind: log, lines: 400, seed: 24}
+  - {path: data/orders.csv, kind: csv, rows: 300, seed: 21}
+  - {path: logs/api-2026-10-16.log, kind: log, lines: 150, seed: 22}
+  - {path: logs/api-2026-10-17.log, kind: log, lines: 150, seed: 23}
+  - {path: logs/api-2026-10-18.log, kind: log, lines: 150, seed: 24}
 routes:
   - {method: POST, path: /deploy, status: 200, body: {ok: true, rollout: "4/4 pods healthy", duration_s: 72}}
   - {method: GET, path: /smoke, status: 200, body: {passed: 38, failed: 0, suites: [checkout, login, search, export, admin]}}
